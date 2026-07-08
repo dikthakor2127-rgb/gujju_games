@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Galaxy Premium Battle Ultimate</title>
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial,sans-serif;
+}
+
+body{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    background:
+        radial-gradient(circle at 20% 20%, rgba(0,100,255,.3), transparent 25%),
+        radial-gradient(circle at 80% 30%, rgba(255,0,150,.2), transparent 30%),
+        radial-gradient(circle at 50% 80%, rgba(100,255,255,.15), transparent 25%),
+        linear-gradient(#000010,#000);
+    overflow:hidden;
+    position:relative;
+}
+
+/* HOME BUTTON */
+.home-btn{
+    position:absolute;
+    top:20px;
+    left:20px;
+    padding:12px 22px;
+    background:rgba(0,255,255,.15);
+    color:cyan;
+    border:2px solid cyan;
+    border-radius:10px;
+    cursor:pointer;
+    font-weight:bold;
+    transition:.2s;
+    z-index:1000;
+}
+.home-btn:hover{
+    box-shadow:0 0 20px cyan;
+}
+
+/* GAME AREA */
+#gameArea{
+    width:520px;
+    height:760px;
+    position:relative;
+    overflow:hidden;
+    border:2px solid rgba(255,255,255,.25);
+    background:linear-gradient(#000015,#000);
+    box-shadow:
+        0 0 30px rgba(0,255,255,.15),
+        inset 0 0 30px rgba(255,255,255,.05);
+}
+
+/* DIFFICULTY MODAL */
+.difficulty-modal{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.95);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    z-index:2000;
+}
+
+.difficulty-card{
+    background:#111;
+    border:2px solid cyan;
+    padding:40px;
+    border-radius:20px;
+    text-align:center;
+    width:420px;
+}
+
+.difficulty-card h2{
+    color:cyan;
+    margin-bottom:20px;
+}
+
+.diff-btn{
+    width:100%;
+    margin:10px 0;
+    padding:15px;
+    font-size:18px;
+    border:none;
+    cursor:pointer;
+    border-radius:10px;
+    font-weight:bold;
+}
+
+.easy{background:#3b82f6;color:white;}
+.medium{background:#f59e0b;color:white;}
+.hard{background:#ef4444;color:white;}
+
+/* STARS */
+.star{
+    position:absolute;
+    background:white;
+    border-radius:50%;
+    opacity:.8;
+}
+
+/* HUD */
+#hud{
+    position:absolute;
+    top:10px;
+    left:10px;
+    width:95%;
+    z-index:500;
+}
+
+#score{
+    color:white;
+    font-size:22px;
+    margin-bottom:8px;
+    text-shadow:0 0 8px cyan;
+}
+
+#healthBox{
+    width:220px;
+    height:18px;
+    border:2px solid white;
+    background:#111;
+    border-radius:10px;
+    overflow:hidden;
+}
+
+#health{
+    width:100%;
+    height:100%;
+    background:linear-gradient(lime,#0a0);
+}
+
+/* PLAYER */
+#player{
+    position:absolute;
+    width:70px;
+    height:90px;
+    bottom:25px;
+    left:225px;
+}
+
+.ship-core{
+    position:absolute;
+    width:100%;
+    height:100%;
+    clip-path:polygon(
+        50% 0%,
+        20% 35%,
+        8% 100%,
+        50% 78%,
+        92% 100%,
+        80% 35%
+    );
+    background:linear-gradient(
+        to bottom,
+        #00ffff,
+        #0066ff,
+        #002244
+    );
+    box-shadow:0 0 20px cyan;
+}
+
+.cockpit{
+    position:absolute;
+    width:20px;
+    height:28px;
+    left:25px;
+    top:15px;
+    background:linear-gradient(#88ffff,#0044ff);
+    border-radius:50%;
+}
+
+.wing-left{
+    position:absolute;
+    width:18px;
+    height:40px;
+    left:-10px;
+    top:38px;
+    background:#0099ff;
+    transform:skewY(35deg);
+}
+
+.wing-right{
+    position:absolute;
+    width:18px;
+    height:40px;
+    right:-10px;
+    top:38px;
+    background:#0099ff;
+    transform:skewY(-35deg);
+}
+
+/* BULLET */
+.bullet{
+    position:absolute;
+    width:7px;
+    height:30px;
+    background:linear-gradient(white,cyan,#00f);
+    border-radius:10px;
+    box-shadow:0 0 20px cyan;
+}
+
+/* ENEMY */
+.enemy{
+    position:absolute;
+    width:65px;
+    height:70px;
+}
+
+.enemy-core{
+    position:absolute;
+    width:100%;
+    height:100%;
+    clip-path:polygon(
+        50% 100%,
+        0 20%,
+        25% 0,
+        75% 0,
+        100% 20%
+    );
+    background:linear-gradient(red,darkred,black);
+    box-shadow:0 0 20px red;
+}
+
+.enemy-eye{
+    position:absolute;
+    width:16px;
+    height:16px;
+    left:24px;
+    top:18px;
+    border-radius:50%;
+    background:orange;
+}
+
+/* GAME OVER */
+#gameOver{
+    position:absolute;
+    top:40%;
+    width:100%;
+    text-align:center;
+    font-size:42px;
+    color:red;
+    text-shadow:0 0 20px red;
+    display:none;
+    z-index:900;
+}
+</style>
+</head>
+
+<body>
+
+<div id="difficultyModal" class="difficulty-modal">
+<div class="difficulty-card">
+<h2>SELECT DIFFICULTY</h2>
+
+<button class="diff-btn easy"
+onclick="startGame('easy')">
+EASY
+</button>
+
+<button class="diff-btn medium"
+onclick="startGame('medium')">
+MEDIUM
+</button>
+
+<button class="diff-btn hard"
+onclick="startGame('hard')">
+HARD
+</button>
+
+</div>
+</div>
+
+<button class="home-btn"
+onclick="window.location='/dashboard'">
+HOME
+</button>
+
+<div id="gameArea">
+
+<div id="hud">
+<div id="score">SCORE: 0</div>
+
+<div id="healthBox">
+<div id="health"></div>
+</div>
+</div>
+
+<div id="gameOver">
+MISSION FAILED<br>
+PRESS ENTER
+</div>
+
+<div id="player">
+<div class="ship-core"></div>
+<div class="cockpit"></div>
+<div class="wing-left"></div>
+<div class="wing-right"></div>
+</div>
+
+</div>
+
+<script>
+
+const gameArea=document.getElementById("gameArea");
+const player=document.getElementById("player");
+const scoreBox=document.getElementById("score");
+const healthBar=document.getElementById("health");
+const gameOverText=document.getElementById("gameOver");
+const difficultyModal=document.getElementById("difficultyModal");
+
+let difficulty={
+easy:{speed:2,spawn:1200},
+medium:{speed:4,spawn:900},
+hard:{speed:6,spawn:650}
+};
+
+let game={
+start:false,
+score:0,
+health:100,
+speed:2,
+spawnRate:1200
+};
+
+let keys={
+ArrowLeft:false,
+ArrowRight:false,
+Space:false
+};
+
+function startGame(level){
+
+game.speed=difficulty[level].speed;
+game.spawnRate=difficulty[level].spawn;
+difficultyModal.style.display="none";
+game.start=true;
+
+enemySpawner();
+
+}
+
+for(let i=0;i<120;i++){
+
+let star=document.createElement("div");
+star.classList.add("star");
+
+let size=Math.random()*3+1;
+
+star.style.width=size+"px";
+star.style.height=size+"px";
+star.style.left=Math.random()*520+"px";
+star.style.top=Math.random()*760+"px";
+
+star.speed=Math.random()*4+1;
+
+gameArea.appendChild(star);
+}
+
+document.addEventListener("keydown",(e)=>{
+
+if(e.code==="Space") keys.Space=true;
+
+keys[e.key]=true;
+
+if(e.key==="Enter" && !game.start){
+location.reload();
+}
+
+});
+
+document.addEventListener("keyup",(e)=>{
+
+if(e.code==="Space") keys.Space=false;
+
+keys[e.key]=false;
+
+});
+
+function shoot(){
+
+let bullet=document.createElement("div");
+bullet.classList.add("bullet");
+
+bullet.style.left=player.offsetLeft+31+"px";
+bullet.style.top=player.offsetTop+"px";
+bullet.y=player.offsetTop;
+
+gameArea.appendChild(bullet);
+
+}
+function createEnemy(){
+
+let enemy=document.createElement("div");
+enemy.classList.add("enemy");
+
+enemy.innerHTML=`
+<div class="enemy-core"></div>
+<div class="enemy-eye"></div>
+`;
+
+enemy.style.left=Math.random()*450+"px";
+enemy.style.top="-80px";
+enemy.y=-80;
+
+gameArea.appendChild(enemy);
+
+}
+
+function enemySpawner(){
+
+let spawnLoop=setInterval(()=>{
+
+if(!game.start){
+clearInterval(spawnLoop);
+return;
+}
+
+createEnemy();
+
+},game.spawnRate);
+
+}
+
+let shootDelay=0;
+
+function collide(a,b){
+
+let aRect=a.getBoundingClientRect();
+let bRect=b.getBoundingClientRect();
+
+return !(
+
+aRect.bottom < bRect.top ||
+aRect.top > bRect.bottom ||
+aRect.right < bRect.left ||
+aRect.left > bRect.right
+
+);
+
+}
+
+/* MOVE STARS */
+function moveStars(){
+
+document.querySelectorAll(".star")
+.forEach(star=>{
+
+let y=parseFloat(star.style.top);
+
+y += star.speed;
+
+if(y > 760){
+y=0;
+star.style.left=Math.random()*520+"px";
+}
+
+star.style.top=y+"px";
+
+});
+
+}
+
+/* MOVE BULLETS */
+function moveBullets(){
+
+document.querySelectorAll(".bullet")
+.forEach(bullet=>{
+
+bullet.y -= 12;
+bullet.style.top=bullet.y+"px";
+
+if(bullet.y < 0){
+bullet.remove();
+}
+
+});
+
+}
+
+/* MOVE ENEMIES */
+function moveEnemies(){
+
+let enemies=document.querySelectorAll(".enemy");
+let bullets=document.querySelectorAll(".bullet");
+
+enemies.forEach(enemy=>{
+
+enemy.y += game.speed;
+enemy.style.top=enemy.y+"px";
+
+/* PLAYER HIT */
+if(collide(player,enemy)){
+
+enemy.remove();
+damagePlayer(20);
+
+}
+
+/* BULLET HIT */
+bullets.forEach(bullet=>{
+
+if(collide(enemy,bullet)){
+
+enemy.remove();
+bullet.remove();
+
+game.score++;
+
+scoreBox.innerText=
+"SCORE: " + game.score;
+
+}
+
+});
+
+if(enemy.y > 760){
+enemy.remove();
+}
+
+});
+
+}
+
+/* PLAYER DAMAGE */
+function damagePlayer(amount){
+
+game.health -= amount;
+
+if(game.health < 0){
+game.health=0;
+}
+
+healthBar.style.width=
+game.health+"%";
+
+if(game.health <= 0){
+endGame();
+}
+
+}
+
+/* PLAYER MOVEMENT */
+function movePlayer(){
+
+let left=player.offsetLeft;
+
+if(keys.ArrowLeft && left > 0){
+
+player.style.left=
+left-8+"px";
+
+}
+
+if(keys.ArrowRight && left < 450){
+
+player.style.left=
+left+8+"px";
+
+}
+
+if(keys.Space && shootDelay<=0){
+
+shoot();
+
+shootDelay=10;
+
+}
+
+if(shootDelay>0){
+shootDelay--;
+}
+
+}
+
+/* SAVE DATA */
+function saveGameData(){
+
+fetch("/save_history",{
+
+method:"POST",
+
+headers:{
+"Content-Type":
+"application/x-www-form-urlencoded"
+},
+
+body:
+"game_name=Galaxy Battle" +
+"&result=Completed" +
+"&score=" + game.score
+
+})
+.then(res=>res.json())
+.catch(err=>console.log(err));
+
+fetch("/save-score",{
+
+method:"POST",
+
+headers:{
+"Content-Type":
+"application/json"
+},
+
+body:JSON.stringify({
+
+game_name:
+"Galaxy Battle",
+
+score:
+game.score
+
+})
+
+})
+.then(res=>res.json())
+.catch(err=>console.log(err));
+
+}
+
+/* END GAME */
+function endGame(){
+
+if(!game.start) return;
+
+game.start=false;
+
+gameOverText.style.display=
+"block";
+
+saveGameData();
+
+}
+
+/* GAME LOOP */
+function gameLoop(){
+
+if(game.start){
+
+moveStars();
+
+moveBullets();
+
+moveEnemies();
+
+movePlayer();
+
+requestAnimationFrame(
+gameLoop
+);
+
+}
+else{
+
+requestAnimationFrame(
+gameLoop
+);
+
+}
+
+}
+
+/* START */
+gameLoop();
+
+</script>
+</body>
+</html>

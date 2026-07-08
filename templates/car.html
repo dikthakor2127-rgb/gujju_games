@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0">
+
+<title>Highway Racer Premium</title>
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial,sans-serif;
+}
+
+body{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    overflow:hidden;
+    position:relative;
+    background:radial-gradient(circle at top,#333,#111,#000);
+}
+
+.home-btn{
+    position:absolute;
+    top:20px;
+    left:20px;
+    padding:12px 22px;
+    background:#fff;
+    color:black;
+    border:none;
+    border-radius:10px;
+    cursor:pointer;
+    font-weight:bold;
+    z-index:1000;
+}
+
+#gameArea{
+    width:420px;
+    height:760px;
+    position:relative;
+    overflow:hidden;
+    border:4px solid white;
+    background:linear-gradient(
+        to right,
+        #222 0%,
+        #333 12%,
+        #555 12%,
+        #555 88%,
+        #333 88%,
+        #222 100%
+    );
+    box-shadow:0 0 40px rgba(255,255,255,.2);
+}
+
+.line{
+    width:12px;
+    height:100px;
+    background:white;
+    position:absolute;
+    left:204px;
+    border-radius:8px;
+}
+
+.barrier-left,
+.barrier-right{
+    position:absolute;
+    width:12px;
+    height:100%;
+    background:repeating-linear-gradient(
+       red 0px,
+       red 20px,
+       white 20px,
+       white 40px
+    );
+    z-index:20;
+}
+
+.barrier-left{ left:0; }
+.barrier-right{ right:0; }
+
+#scorePanel{
+    position:absolute;
+    top:15px;
+    left:15px;
+    z-index:500;
+}
+
+#score{
+    color:#00ff88;
+    font-size:28px;
+    font-weight:bold;
+    text-shadow:0 0 10px #00ff88;
+}
+
+/* difficulty modal */
+.difficulty-modal{
+    position:fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    background:rgba(0,0,0,.95);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    z-index:1000;
+}
+
+.difficulty-card{
+    background:#222;
+    border:2px solid white;
+    border-radius:20px;
+    padding:40px;
+    text-align:center;
+}
+
+.difficulty-buttons{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+}
+
+.difficulty-btn{
+    padding:14px;
+    font-size:1rem;
+    font-weight:bold;
+    cursor:pointer;
+    border:none;
+    border-radius:8px;
+    color:white;
+}
+
+.easy{background:#3b82f6;}
+.medium{background:#f59e0b;}
+.hard{background:#ef4444;}
+
+.difficulty-badge{
+    position:absolute;
+    top:70px;
+    left:20px;
+    padding:6px 14px;
+    border-radius:20px;
+    font-size:0.9rem;
+    font-weight:bold;
+    background:rgba(255,255,255,0.1);
+    border:2px solid white;
+    color:white;
+    z-index:100;
+}
+
+/* player */
+#player{
+    position:absolute;
+    width:65px;
+    height:110px;
+    bottom:25px;
+    left:175px;
+    z-index:200;
+}
+
+.car-body{
+    position:absolute;
+    width:100%;
+    height:100%;
+    border-radius:12px;
+    background:linear-gradient(#ff2222,#990000);
+    box-shadow:0 0 20px red;
+}
+
+.windshield{
+    position:absolute;
+    width:38px;
+    height:28px;
+    left:13px;
+    top:12px;
+    border-radius:8px;
+    background:linear-gradient(#66ccff,#003366);
+}
+
+.wheel{
+    position:absolute;
+    width:10px;
+    height:25px;
+    background:black;
+    border-radius:5px;
+}
+
+.w1{left:-5px;top:15px;}
+.w2{right:-5px;top:15px;}
+.w3{left:-5px;bottom:15px;}
+.w4{right:-5px;bottom:15px;}
+
+.enemy{
+    position:absolute;
+    width:65px;
+    height:110px;
+}
+
+.enemy-body{
+    position:absolute;
+    width:100%;
+    height:100%;
+    border-radius:12px;
+    background:linear-gradient(gold,#cc8800);
+    box-shadow:0 0 18px orange;
+}
+
+.enemy-glass{
+    position:absolute;
+    width:38px;
+    height:28px;
+    left:13px;
+    top:12px;
+    border-radius:8px;
+    background:linear-gradient(#bdefff,#225577);
+}
+
+.particle{
+    position:absolute;
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    background:orange;
+}
+
+#gameOver{
+    position:absolute;
+    top:42%;
+    width:100%;
+    text-align:center;
+    font-size:42px;
+    color:red;
+    font-weight:bold;
+    display:none;
+    z-index:800;
+}
+</style>
+</head>
+
+<body>
+
+<div id="difficultyModal" class="difficulty-modal">
+<div class="difficulty-card">
+<h2 style="color:white;margin-bottom:20px;">Select Difficulty</h2>
+
+<div class="difficulty-buttons">
+<button class="difficulty-btn easy"
+onclick="startGameWithDifficulty('easy')">Easy</button>
+
+<button class="difficulty-btn medium"
+onclick="startGameWithDifficulty('medium')">Medium</button>
+
+<button class="difficulty-btn hard"
+onclick="startGameWithDifficulty('hard')">Hard</button>
+</div>
+</div>
+</div>
+
+<button class="home-btn"
+onclick="window.location='/dashboard'">
+HOME
+</button>
+
+<div class="difficulty-badge">
+Difficulty:
+<span id="difficultyLevel">Easy</span>
+</div>
+
+<div id="gameArea">
+
+<div class="barrier-left"></div>
+<div class="barrier-right"></div>
+
+<div id="scorePanel">
+<div id="score">0</div>
+</div>
+
+<div id="gameOver">
+CRASHED<br>
+Press ENTER
+</div>
+
+<div id="player">
+<div class="car-body"></div>
+<div class="windshield"></div>
+<div class="wheel w1"></div>
+<div class="wheel w2"></div>
+<div class="wheel w3"></div>
+<div class="wheel w4"></div>
+</div>
+
+</div>
+
+<script>
+const gameArea =
+document.getElementById("gameArea");
+
+const player =
+document.getElementById("player");
+
+const scoreBox =
+document.getElementById("score");
+
+const gameOverText =
+document.getElementById("gameOver");
+
+const difficultyLevel =
+document.getElementById("difficultyLevel");
+
+const difficultyModal =
+document.getElementById("difficultyModal");
+
+/* REAL DIFFICULTY */
+const difficultySettings = {
+easy:{
+speed:3,
+spawn:1600,
+increase:0.2,
+label:"Easy"
+},
+medium:{
+speed:5,
+spawn:1200,
+increase:0.4,
+label:"Medium"
+},
+hard:{
+speed:7,
+spawn:800,
+increase:0.6,
+label:"Hard"
+}
+};
+
+let currentDifficulty="easy";
+let enemySpawnRate=1600;
+let speedIncreaseRate=0.2;
+let enemySpawner;
+
+/* GAME */
+let game={
+start:false,
+score:0,
+speed:3
+};
+
+let keys={
+ArrowLeft:false,
+ArrowRight:false
+};
+
+/* START WITH DIFFICULTY */
+function startGameWithDifficulty(diff){
+
+currentDifficulty=diff;
+
+let settings =
+difficultySettings[diff];
+
+game.speed =
+settings.speed;
+
+enemySpawnRate =
+settings.spawn;
+
+speedIncreaseRate =
+settings.increase;
+
+difficultyLevel.textContent =
+settings.label;
+
+difficultyModal.style.display =
+"none";
+
+resetGame();
+}
+
+/* RESET */
+function resetGame(){
+
+game.start=true;
+game.score=0;
+
+scoreBox.innerText=0;
+
+player.style.left="175px";
+
+document.querySelectorAll(".enemy")
+.forEach(e=>e.remove());
+
+gameOverText.style.display=
+"none";
+
+clearInterval(enemySpawner);
+
+enemySpawner =
+setInterval(()=>{
+
+if(game.start){
+createEnemy();
+}
+
+},enemySpawnRate);
+}
+
+/* road lines */
+for(let i=0;i<8;i++){
+
+let line =
+document.createElement("div");
+
+line.classList.add("line");
+
+line.y = i*110;
+
+line.style.top =
+line.y+"px";
+
+gameArea.appendChild(line);
+}
+
+/* enemy create */
+function createEnemy(){
+
+let enemy =
+document.createElement("div");
+
+enemy.classList.add("enemy");
+
+enemy.innerHTML=`
+
+<div class="enemy-body"></div>
+<div class="enemy-glass"></div>
+
+<div class="wheel w1"></div>
+<div class="wheel w2"></div>
+<div class="wheel w3"></div>
+<div class="wheel w4"></div>
+`;
+
+let lanes=[45,177,310];
+
+enemy.style.left=
+lanes[
+Math.floor(Math.random()*3)
+]+"px";
+
+enemy.style.top="-120px";
+
+enemy.y=-120;
+
+gameArea.appendChild(enemy);
+}
+document.addEventListener(
+"keydown",(e)=>{
+
+keys[e.key]=true;
+
+/* restart after crash */
+if(
+e.key==="Enter" &&
+!game.start
+){
+resetGame();
+}
+});
+
+document.addEventListener(
+"keyup",(e)=>{
+keys[e.key]=false;
+});
+
+/* COLLISION */
+function isCollide(a,b){
+
+let aRect =
+a.getBoundingClientRect();
+
+let bRect =
+b.getBoundingClientRect();
+
+return !(
+
+aRect.bottom < bRect.top ||
+
+aRect.top > bRect.bottom ||
+
+aRect.right < bRect.left ||
+
+aRect.left > bRect.right
+);
+}
+
+/* ROAD MOVE */
+function moveLines(){
+
+let lines =
+document.querySelectorAll(".line");
+
+lines.forEach(line=>{
+
+if(line.y >= 760){
+line.y -= 880;
+}
+
+line.y += game.speed;
+
+line.style.top =
+line.y + "px";
+});
+}
+
+/* ENEMY MOVE */
+function moveEnemies(){
+
+let enemies =
+document.querySelectorAll(".enemy");
+
+enemies.forEach(enemy=>{
+
+/* collision */
+if(
+isCollide(
+player,
+enemy
+)
+){
+endGame();
+}
+
+enemy.y += game.speed;
+
+enemy.style.top =
+enemy.y + "px";
+
+/* passed enemy */
+if(enemy.y > 760){
+
+enemy.remove();
+
+game.score++;
+
+scoreBox.innerText =
+game.score;
+
+/* progressive difficulty */
+if(
+game.score % 5 === 0
+){
+game.speed +=
+speedIncreaseRate;
+}
+}
+});
+}
+
+/* PLAYER MOVE */
+function movePlayer(){
+
+let left =
+player.offsetLeft;
+
+/* left limit */
+if(
+keys.ArrowLeft &&
+left > 20
+){
+player.style.left =
+(left - 8) + "px";
+}
+
+/* right limit */
+if(
+keys.ArrowRight &&
+left < 335
+){
+player.style.left =
+(left + 8) + "px";
+}
+}
+
+/* PARTICLES */
+function createExplosion(x,y){
+
+for(let i=0;i<25;i++){
+
+let particle =
+document.createElement("div");
+
+particle.classList.add(
+"particle"
+);
+
+particle.style.left =
+x + "px";
+
+particle.style.top =
+y + "px";
+
+particle.dx =
+(Math.random()-0.5)*8;
+
+particle.dy =
+(Math.random()-0.5)*8;
+
+particle.life = 35;
+
+gameArea.appendChild(
+particle
+);
+}
+}
+
+/* MOVE PARTICLES */
+function moveParticles(){
+
+document.querySelectorAll(
+".particle"
+).forEach(p=>{
+
+let x =
+parseFloat(
+p.style.left
+);
+
+let y =
+parseFloat(
+p.style.top
+);
+
+x += p.dx;
+y += p.dy;
+
+p.style.left =
+x + "px";
+
+p.style.top =
+y + "px";
+
+p.life--;
+
+p.style.opacity =
+p.life / 35;
+
+if(p.life <= 0){
+p.remove();
+}
+});
+}
+
+/* SAVE SCORE */
+function saveGameData(){
+
+fetch("/save_history",{
+
+method:"POST",
+
+headers:{
+"Content-Type":
+"application/x-www-form-urlencoded"
+},
+
+body:
+"game_name=Car Racing"+
+"&result=Completed"+
+"&score="+game.score
+});
+
+fetch("/save-score",{
+
+method:"POST",
+
+headers:{
+"Content-Type":
+"application/json"
+},
+
+body:JSON.stringify({
+
+game_name:
+"Car Racing",
+
+score:
+game.score
+
+})
+});
+}
+
+/* GAME OVER */
+function endGame(){
+
+if(!game.start) return;
+
+game.start=false;
+
+gameOverText.style.display =
+"block";
+
+createExplosion(
+player.offsetLeft + 30,
+player.offsetTop + 50
+);
+
+clearInterval(
+enemySpawner
+);
+
+saveGameData();
+}
+
+/* LOOP */
+function gameLoop(){
+
+if(game.start){
+
+moveLines();
+
+moveEnemies();
+
+movePlayer();
+
+moveParticles();
+
+}else{
+
+/* explosion still moves */
+moveParticles();
+}
+
+requestAnimationFrame(
+gameLoop
+);
+}
+
+/* START LOOP */
+gameLoop();
+
+</script>
+</body>
+</html>

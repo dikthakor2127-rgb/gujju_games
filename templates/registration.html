@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gujju Games — Register</title>
+  <link rel="icon" href="{{ url_for('static', filename='LOGO.jpeg') }}" type="image/x-icon">
+
+  <style>
+    :root {
+      --bg-start: #08101e;
+      --bg-mid: #101d33;
+      --bg-end: #1b2846;
+      --accent: #8b5cf6;
+      --accent2: #0ea5e9;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --shadow: 0 30px 80px rgba(0,0,0,0.35);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(142,180,255,0.18), transparent 20%),
+        radial-gradient(circle at bottom right, rgba(30,233,255,0.12), transparent 18%),
+        linear-gradient(135deg, var(--bg-start), var(--bg-mid), var(--bg-end));
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .panel {
+      width: min(520px, 100%);
+      background: linear-gradient(180deg, rgba(12,18,34,0.96), rgba(15,23,42,0.98));
+      border-radius: 28px;
+      padding: 2rem;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(68,87,126,0.2);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .panel::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at top right, rgba(14,165,233,0.14), transparent 20%),
+        radial-gradient(circle at bottom left, rgba(139,92,246,0.14), transparent 18%);
+      pointer-events: none;
+    }
+
+    .panel > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .brand {
+      text-align: center;
+      margin-bottom: 1.25rem;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: clamp(1.8rem, 3.5vw, 2.4rem);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .brand p {
+      margin: .4rem 0 0;
+      color: var(--muted);
+    }
+
+    form {
+      display: grid;
+      gap: 0.9rem;
+    }
+
+    .field {
+      display: grid;
+      gap: 0.45rem;
+    }
+
+    label {
+      color: var(--muted);
+      font-size: .95rem;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="tel"] {
+      width: 100%;
+      padding: 13px 14px;
+      border-radius: 12px;
+      background: rgba(15,23,42,0.75);
+      color: var(--text);
+      border: 1px solid rgba(148,163,184,0.12);
+    }
+
+    input:focus {
+      outline: none;
+      border-color: rgba(14,165,233,0.9);
+      box-shadow: 0 0 0 4px rgba(14,165,233,0.08);
+    }
+
+    button[type="submit"] {
+      border: none;
+      border-radius: 999px;
+      padding: 13px 16px;
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      cursor: pointer;
+      box-shadow: 0 14px 30px rgba(139,92,246,0.28);
+    }
+
+    button[type="submit"]:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.05);
+    }
+
+    .hint {
+      text-align: center;
+      color: var(--muted);
+      font-size: .9rem;
+      margin-top: .6rem;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 12px;
+    }
+
+    .footer-link {
+      color: white;
+      text-decoration: none;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(139,92,246,0.16), rgba(14,165,233,0.12));
+      border: 1px solid rgba(139,92,246,0.22);
+      display: inline-block;
+    }
+
+    .footer-link:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(14,165,233,0.08);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="panel">
+    <div class="brand">
+      <h1>Gujju Games</h1>
+      <p>Create your hero account</p>
+    </div>
+
+    <form action="{{ url_for('registration') }}" method="POST">
+      <div class="field">
+        <label for="Username">Username</label>
+        <input type="text" id="Username" name="Username" placeholder="ShadowPlayer" required>
+      </div>
+
+      <div class="field">
+        <label for="Email">Email</label>
+        <input type="email" id="Email" name="Email" placeholder="you@gmail.com" required>
+      </div>
+
+      <div class="field">
+        <label for="Phone_number">Phone Number</label>
+        <input type="tel" id="Phone_number" name="Phone_number" placeholder="9876543210" required>
+      </div>
+
+      <div class="field">
+        <label for="Password">Password</label>
+        <input type="password" id="Password" name="Password" placeholder="At least 6 characters" required>
+      </div>
+
+      <div class="field">
+        <label for="Confirm_password">Confirm Password</label>
+        <input type="password" id="Confirm_password" name="Confirm_password" placeholder="Repeat password" required>
+      </div>
+
+      <button type="submit">Register</button>
+    </form>
+
+    <p class="hint">Tip: Use a unique password to power up your account.</p>
+
+    <div class="footer">
+      <a href="{{ url_for('login') }}" class="footer-link">
+        Already have an account? Login
+      </a>
+    </div>
+  </div>
+</body>
+</html>

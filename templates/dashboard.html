@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gujju Games Dashboard</title>
+
+<link rel="icon" href="{{ url_for('static', filename='images/LOGO.jpeg') }}">
+
+<style>
+
+/* ================= THEME VARIABLES ================= */
+
+:root{
+    --bg-overlay: linear-gradient(
+        135deg,
+        rgba(5,10,20,.92),
+        rgba(10,15,30,.80)
+    );
+
+    --sidebar-bg: rgba(10,10,20,.85);
+    --card-bg: rgba(255,255,255,.05);
+    --text-main: white;
+    --text-secondary: #cbd5e1;
+    --accent: #00eaff;
+    --border: rgba(255,255,255,.08);
+}
+
+/* LIGHT MODE */
+
+body.light{
+
+    --bg-overlay: linear-gradient(
+        135deg,
+        rgba(245,248,255,.96),
+        rgba(225,235,255,.92)
+    );
+
+    --sidebar-bg: rgba(255,255,255,.85);
+    --card-bg: rgba(255,255,255,.70);
+    --text-main: #111827;
+    --text-secondary: #374151;
+    --accent: #2563eb;
+    --border: rgba(0,0,0,.08);
+}
+
+/* AUTO MODE */
+
+@media(prefers-color-scheme: light){
+
+    body.auto{
+
+        --bg-overlay: linear-gradient(
+            135deg,
+            rgba(245,248,255,.96),
+            rgba(225,235,255,.92)
+        );
+
+        --sidebar-bg: rgba(255,255,255,.85);
+        --card-bg: rgba(255,255,255,.70);
+        --text-main: #111827;
+        --text-secondary: #374151;
+        --accent: #2563eb;
+        --border: rgba(0,0,0,.08);
+
+    }
+
+}
+
+/* GLOBAL */
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial,sans-serif;
+}
+
+body{
+    background:url("{{ url_for('static', filename='images/background.jpeg') }}");
+    background-size:cover;
+    background-position:center;
+    min-height:100vh;
+    color:var(--text-main);
+    overflow-x:hidden;
+    transition:.35s;
+}
+
+/* OVERLAY */
+
+.overlay{
+    min-height:100vh;
+    display:flex;
+    background:var(--bg-overlay);
+    transition:.35s;
+}
+
+/* SIDEBAR */
+
+.sidebar{
+    width:270px;
+    min-height:100vh;
+    background:var(--sidebar-bg);
+    backdrop-filter:blur(20px);
+    padding:30px 20px;
+    border-right:1px solid var(--border);
+    box-shadow:0 0 25px rgba(0,0,0,.5);
+}
+
+/* LOGO */
+
+.logo{
+    text-align:center;
+    font-size:28px;
+    font-weight:800;
+    letter-spacing:2px;
+    margin-bottom:30px;
+    color:var(--accent);
+    text-shadow:0 0 15px var(--accent);
+}
+
+/* PLAYER BOX */
+
+.player-box{
+    background:var(--card-bg);
+    border:1px solid var(--border);
+    padding:18px;
+    border-radius:18px;
+    margin-bottom:30px;
+    text-align:center;
+    backdrop-filter:blur(10px);
+}
+
+.player-box h4{
+    color:var(--accent);
+    margin-bottom:6px;
+    font-size:18px;
+}
+
+.player-box p{
+    color:var(--text-secondary);
+    font-size:13px;
+}
+
+/* SIDEBAR LINKS */
+
+.sidebar a{
+    display:block;
+    text-decoration:none;
+    color:var(--text-secondary);
+    padding:14px 18px;
+    margin-bottom:12px;
+    border-radius:14px;
+    transition:.3s;
+    font-weight:600;
+    background:rgba(255,255,255,.03);
+}
+
+.sidebar a:hover{
+    background:linear-gradient(
+        90deg,
+        #06b6d4,
+        #7c3aed
+    );
+    color:white;
+    transform:translateX(5px);
+}
+
+.logout{
+    background:rgba(239,68,68,.15)!important;
+}
+
+.logout:hover{
+    background:#ef4444!important;
+}
+
+.login{
+    background:rgba(16,185,129,.15)!important;
+}
+
+.login:hover{
+    background:#10b981!important;
+}
+
+/* MAIN */
+
+.main{
+    flex:1;
+    padding:35px;
+}
+ /* TOP RIGHT THEME SWITCHER */
+
+.top-theme{
+    width:100%;
+    display:flex;
+    justify-content:flex-end;
+    margin-bottom:25px;
+}
+
+.top-theme select{
+    padding:12px 18px;
+    border:none;
+    border-radius:12px;
+    background:#111827;
+    color:white;
+    font-weight:bold;
+    cursor:pointer;
+    min-width:170px;
+    transition:.3s;
+}
+
+.top-theme select:hover{
+    transform:scale(1.03);
+}
+
+/* HERO */
+
+.hero{
+    width:100%;
+    padding:40px;
+    border-radius:25px;
+    background:var(--card-bg);
+    backdrop-filter:blur(20px);
+    border:1px solid var(--border);
+    box-shadow:0 0 25px rgba(0,0,0,.35);
+    margin-bottom:35px;
+    position:relative;
+    overflow:hidden;
+}
+
+.hero::before{
+    content:"";
+    position:absolute;
+    width:300px;
+    height:300px;
+    background:var(--accent);
+    filter:blur(120px);
+    opacity:.15;
+    top:-100px;
+    right:-100px;
+}
+
+.hero h1{
+    font-size:42px;
+    font-weight:800;
+    margin-bottom:12px;
+    position:relative;
+    z-index:2;
+}
+
+.hero span{
+    color:var(--accent);
+}
+
+.hero p{
+    color:var(--text-secondary);
+    font-size:17px;
+    position:relative;
+    z-index:2;
+}
+
+/* STATS */
+
+.stats{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+    gap:25px;
+    margin-bottom:40px;
+}
+
+.stat-card{
+    background:var(--card-bg);
+    border:1px solid var(--border);
+    padding:25px;
+    border-radius:20px;
+    backdrop-filter:blur(15px);
+}
+
+.stat-card h3{
+    font-size:15px;
+    color:var(--text-secondary);
+    margin-bottom:12px;
+}
+
+.stat-card p{
+    font-size:32px;
+    font-weight:800;
+    color:var(--accent);
+}
+
+/* SECTION */
+
+.section-title{
+    font-size:28px;
+    margin-bottom:25px;
+    font-weight:800;
+}
+
+</style>
+</head>
+
+<body class="dark">
+
+<div class="overlay">
+
+    <!-- SIDEBAR -->
+
+    <div class="sidebar">
+
+        <div class="logo">🎮 GUJJU GAMES</div>
+
+        <div class="player-box">
+
+            {% if Username %}
+                <h4>{{ Username }}</h4>
+                <p>Logged In Player</p>
+            {% else %}
+                <h4>Guest Player</h4>
+                <p>Please login to save score</p>
+            {% endif %}
+
+        </div>
+
+        <a href="{{ url_for('dashboard') }}">🏠 Home</a>
+
+        {% if Username %}
+            <a href="{{ url_for('profile') }}">👤 Profile</a>
+        {% endif %}
+
+        <a href="{{ url_for('leaderboard') }}">🏆 Leaderboard</a>
+
+        {% if Username %}
+            <a href="{{ url_for('history') }}">📜 Match History</a>
+        {% endif %}
+
+        {% if Username %}
+            <a href="{{ url_for('logout') }}" class="logout">🚪 Logout</a>
+        {% else %}
+            <a href="{{ url_for('login') }}" class="login">🔑 Login</a>
+        {% endif %}
+
+    </div>
+
+    <!-- MAIN -->
+
+    <div class="main">
+
+        <!-- TOP RIGHT THEME -->
+
+        <div class="top-theme">
+
+            <select id="themeSwitcher">
+                <option value="dark">🌙 Dark</option>
+                <option value="light">☀️ Light</option>
+                <option value="auto">💻 Auto</option>
+            </select>
+
+        </div>
+
+        <!-- HERO -->
+
+        <div class="hero">
+
+            <h1>
+                WELCOME TO <span>GUJJU GAMES</span>
+            </h1>
+
+            <p>
+                Play. Compete. Dominate the leaderboard.
+                Become the ultimate champion.
+            </p>
+
+        </div>
+
+        <!-- STATS -->
+
+        <div class="stats" id="statsContainer">
+
+            <div class="stat-card">
+                <h3>Total Games Played</h3>
+                <p id="totalGames">{{ total_games }}</p>
+            </div>
+
+            <div class="stat-card">
+                <h3>Your Highest Score</h3>
+                <p id="highScore">{{ high_score }}</p>
+            </div>
+
+        </div>
+
+        <div class="section-title">
+
+            🔥 Featured Games
+
+        </div>
+
+        <div class="games">
+            <style>
+
+/* GAMES GRID */
+
+.games{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+    gap:25px;
+    align-items:stretch;
+}
+
+/* CARD */
+
+.card{
+    background:var(--card-bg);
+    backdrop-filter:blur(15px);
+    border:1px solid var(--border);
+    border-radius:22px;
+    overflow:hidden;
+    transition:.35s;
+    position:relative;
+
+    display:flex;
+    flex-direction:column;
+    height:100%;
+}
+
+.card:hover{
+    transform:translateY(-8px) scale(1.02);
+    box-shadow:0 0 30px rgba(124,58,237,.20);
+}
+
+/* IMAGE */
+
+.image{
+    height:200px;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background:linear-gradient(
+        135deg,
+        #0f172a,
+        #111827,
+        #1e293b
+    );
+    overflow:hidden;
+}
+
+.image img{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    display:block;
+}
+
+/* CONTENT */
+
+.content{
+    padding:25px;
+    flex:1;
+    display:flex;
+    flex-direction:column;
+}
+
+.content h3{
+    font-size:26px;
+    margin-bottom:12px;
+}
+
+.content p{
+    color:var(--text-secondary);
+    line-height:1.6;
+    margin-bottom:20px;
+}
+
+/* BUTTON */
+
+.play-btn{
+    display:inline-block;
+    text-decoration:none;
+    padding:12px 30px;
+    border-radius:10px;
+    font-weight:bold;
+    color:white;
+    background:linear-gradient(
+        90deg,
+        #06b6d4,
+        #7c3aed
+    );
+    transition:.3s;
+    margin-top:auto;
+}
+
+.play-btn:hover{
+    transform:scale(1.05);
+}
+</style>
+
+
+<!-- TIC TAC TOE -->
+<div class="card">
+
+    <div class="image">
+        <img src="{{ url_for('static', filename='images/tictactoe.png') }}" alt="Tic Tac Toe">
+    </div>
+
+    <div class="content">
+        <h3>Tic Tac Toe</h3>
+        <p>Classic strategy battle. Outsmart your opponent and claim victory.</p>
+        <a href="{{ url_for('tic_tac_toe') }}" class="play-btn">PLAY NOW</a>
+    </div>
+
+</div>
+
+
+<!-- BRICK BREAKER -->
+<div class="card">
+
+    <div class="image">
+        <img src="{{ url_for('static', filename='images/brickbreaker.webp') }}" alt="Brick Breaker">
+    </div>
+
+    <div class="content">
+        <h3>Brick N Ball</h3>
+        <p>Destroy every brick, survive longer, and push for the highest score.</p>
+        <a href="{{ url_for('brick_breaker') }}" class="play-btn">PLAY NOW</a>
+    </div>
+
+</div>
+
+
+<!-- SNAKE -->
+<div class="card">
+
+    <div class="image">
+        <img src="{{ url_for('static', filename='images/snake.jpeg') }}" alt="Snake Game">
+    </div>
+
+    <div class="content">
+        <h3>Snake & Apple</h3>
+        <p>Collect apples, grow longer, and survive the endless challenge.</p>
+        <a href="{{ url_for('snake') }}" class="play-btn">PLAY NOW</a>
+    </div>
+
+</div>
+
+
+<!-- SPACE SHOOTER -->
+<div class="card">
+
+    <div class="image">
+        <img src="{{ url_for('static', filename='images/space.jpg') }}" alt="Space Shooter">
+    </div>
+
+    <div class="content">
+        <h3>Space Shooter</h3>
+        <p>Defend the galaxy, destroy enemies, and achieve maximum score.</p>
+        <a href="{{ url_for('space_shooter') }}" class="play-btn">PLAY NOW</a>
+    </div>
+
+</div>
+
+
+<!-- FLAPPY BIRD -->
+<div class="card">
+
+    <div class="image">
+        <img src="{{ url_for('static', filename='images/bird.png') }}" alt="Flappy Bird">
+    </div>
+
+    <div class="content">
+        <h3>Flappy Bird</h3>
+        <p>Fly through endless pipes. Precision and timing are everything.</p>
+        <a href="{{ url_for('flappy_bird') }}" class="play-btn">PLAY NOW</a>
+    </div>
+
+</div>
+
+
+<!-- CAR GAME -->
+<div class="card">
+
+    <div class="image">
+        <img src="{{ url_for('static', filename='images/car.jpeg') }}" alt="Car Racing">
+    </div>
+
+    <div class="content">
+        <h3>Car Racing</h3>
+        <p>Dodge obstacles, race at top speed, and set a record score.</p>
+        <a href="{{ url_for('car_game') }}" class="play-btn">PLAY NOW</a>
+    </div>
+
+</div>
+
+        </div>   <!-- END GAMES -->
+
+    </div>   <!-- END MAIN -->
+
+</div>   <!-- END OVERLAY -->
+<style>
+
+/* MOBILE RESPONSIVE */
+
+@media(max-width:768px){
+
+    .overlay{
+        flex-direction:column;
+    }
+
+    .sidebar{
+        width:100%;
+        min-height:auto;
+    }
+
+    .main{
+        padding:20px;
+    }
+
+    .top-theme{
+        justify-content:center;
+        margin-bottom:20px;
+    }
+
+    .top-theme select{
+        width:100%;
+        max-width:220px;
+    }
+
+    .hero{
+        padding:25px;
+    }
+
+    .hero h1{
+        font-size:30px;
+    }
+
+    .section-title{
+        font-size:22px;
+    }
+
+    .games{
+        grid-template-columns:1fr;
+    }
+
+}
+
+</style>
+
+
+<script>
+
+/* ================= THEME SYSTEM ================= */
+
+const themeSwitcher = document.getElementById("themeSwitcher");
+
+/* LOAD SAVED THEME */
+
+let savedTheme = localStorage.getItem("gujjuTheme");
+
+/* DEFAULT THEME */
+
+if(!savedTheme){
+    savedTheme = "dark";
+}
+
+/* APPLY THEME */
+
+document.body.classList.remove(
+    "dark",
+    "light",
+    "auto"
+);
+
+document.body.classList.add(savedTheme);
+
+/* SET SELECT VALUE */
+
+themeSwitcher.value = savedTheme;
+
+/* CHANGE THEME */
+
+themeSwitcher.addEventListener(
+    "change",
+    function(){
+
+        document.body.classList.remove(
+            "dark",
+            "light",
+            "auto"
+        );
+
+        document.body.classList.add(
+            this.value
+        );
+
+        localStorage.setItem(
+            "gujjuTheme",
+            this.value
+        );
+
+    }
+);
+
+/* ================= LIVE STATS UPDATE ================= */
+
+// Fetch and update stats every 5 seconds
+function updateStats() {
+    fetch('/api/user-stats', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('totalGames').textContent = data.total_games || 0;
+            document.getElementById('highScore').textContent = data.high_score || 0;
+        }
+    })
+    .catch(error => console.log('Stats update check (may be guest user)'));
+}
+
+// Update stats on page load
+updateStats();
+
+// Auto-refresh stats every 5 seconds
+setInterval(updateStats, 5000);
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flappy Bird Premium</title>
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial,sans-serif;
+}
+
+body{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    overflow:hidden;
+    position:relative;
+    background:linear-gradient(#4ec0ff,#dff8ff);
+}
+
+/* HOME BUTTON */
+.home-btn{
+    position:absolute;
+    top:20px;
+    left:20px;
+    padding:12px 22px;
+    background:white;
+    border:2px solid #333;
+    border-radius:10px;
+    cursor:pointer;
+    font-weight:bold;
+    z-index:100;
+}
+
+/* GAME AREA */
+#gameWrapper{
+    position:relative;
+    width:420px;
+    height:700px;
+    overflow:hidden;
+    border:4px solid #222;
+    background:linear-gradient(#6bd2ff,#bff6ff);
+}
+
+#score{
+    position:absolute;
+    top:20px;
+    width:100%;
+    text-align:center;
+    color:white;
+    font-size:42px;
+    font-weight:bold;
+    text-shadow:3px 3px black;
+    z-index:200;
+}
+
+#gameOver{
+    position:absolute;
+    top:42%;
+    width:100%;
+    text-align:center;
+    font-size:40px;
+    font-weight:bold;
+    color:red;
+    text-shadow:2px 2px black;
+    display:none;
+    z-index:300;
+}
+
+canvas{
+    position:absolute;
+    z-index:20;
+}
+
+#ground{
+    position:absolute;
+    bottom:0;
+    width:200%;
+    height:80px;
+    background:
+    repeating-linear-gradient(
+        90deg,
+        #4caf50 0px,
+        #4caf50 20px,
+        #429744 20px,
+        #429744 40px
+    );
+    border-top:4px solid #8b5a2b;
+    z-index:100;
+}
+
+/* START TEXT */
+#startText{
+    position:absolute;
+    width:100%;
+    text-align:center;
+    top:52%;
+    font-size:24px;
+    color:#222;
+    font-weight:bold;
+    z-index:200;
+}
+
+/* DIFFICULTY */
+.difficulty-modal{
+    position:fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    background:rgba(112,197,206,.95);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    z-index:1000;
+}
+
+.difficulty-card{
+    background:#bff6ff;
+    padding:40px;
+    border-radius:20px;
+    text-align:center;
+    border:2px solid black;
+}
+
+.difficulty-buttons{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+}
+
+.difficulty-btn{
+    padding:14px;
+    font-size:1rem;
+    font-weight:bold;
+    cursor:pointer;
+    border:none;
+    border-radius:8px;
+}
+
+.easy{background:#3b82f6;}
+.medium{background:#f59e0b;}
+.hard{background:#ef4444;}
+
+.difficulty-badge{
+    position:absolute;
+    top:70px;
+    left:20px;
+    padding:6px 14px;
+    border-radius:20px;
+    font-size:.9rem;
+    font-weight:bold;
+    background:rgba(255,255,255,.4);
+    border:2px solid #222;
+    z-index:100;
+}
+</style>
+</head>
+
+<body>
+
+<div id="difficultyModal" class="difficulty-modal">
+<div class="difficulty-card">
+
+<h2>Select Difficulty</h2>
+
+<div class="difficulty-buttons">
+
+<button class="difficulty-btn easy"
+onclick="startGameWithDifficulty('easy')">
+Easy
+</button>
+
+<button class="difficulty-btn medium"
+onclick="startGameWithDifficulty('medium')">
+Medium
+</button>
+
+<button class="difficulty-btn hard"
+onclick="startGameWithDifficulty('hard')">
+Hard
+</button>
+
+</div>
+</div>
+</div>
+
+<button class="home-btn"
+onclick="window.location='/dashboard'">
+HOME
+</button>
+
+<div class="difficulty-badge">
+Difficulty:
+<span id="difficultyLevel">Easy</span>
+</div>
+
+<div id="gameWrapper">
+
+<div id="score">0</div>
+
+<div id="gameOver">
+GAME OVER<br>
+Press SPACE
+</div>
+
+<div id="startText">
+Press SPACE to Start
+</div>
+
+<canvas id="gameCanvas"
+width="420"
+height="700">
+</canvas>
+
+<div id="ground"></div>
+
+</div>
+
+<script>
+const canvas =
+document.getElementById("gameCanvas");
+
+const ctx =
+canvas.getContext("2d");
+
+const scoreBox =
+document.getElementById("score");
+
+const gameOverText =
+document.getElementById("gameOver");
+
+const startText =
+document.getElementById("startText");
+
+const ground =
+document.getElementById("ground");
+
+const difficultyLevel =
+document.getElementById("difficultyLevel");
+
+const difficultyModal =
+document.getElementById("difficultyModal");
+
+/* REAL DIFFICULTY */
+const difficultySettings = {
+
+easy:{
+gravity:0.35,
+pipeSpeed:2,
+pipeGap:210,
+label:"Easy"
+},
+
+medium:{
+gravity:0.50,
+pipeSpeed:3,
+pipeGap:170,
+label:"Medium"
+},
+
+hard:{
+gravity:0.70,
+pipeSpeed:4.5,
+pipeGap:130,
+label:"Hard"
+}
+};
+
+let currentDifficulty="easy";
+
+/* GAME STATE */
+let score=0;
+let gameStarted=false;
+let gameOver=false;
+
+/* DYNAMIC VALUES */
+let pipeSpeed=2;
+let pipeGap=210;
+
+/* BIRD */
+const bird = {
+x:90,
+y:250,
+radius:18,
+gravity:0.35,
+velocity:0,
+jump:-8.5,
+rotation:0
+};
+
+let pipes=[];
+
+/* CLOUDS */
+let clouds=[];
+
+for(let i=0;i<5;i++){
+
+clouds.push({
+
+x:Math.random()*420,
+y:Math.random()*220,
+speed:Math.random()*0.7+0.3
+
+});
+}
+
+/* START WITH DIFFICULTY */
+function startGameWithDifficulty(diff){
+
+currentDifficulty=diff;
+
+let settings =
+difficultySettings[diff];
+
+bird.gravity =
+settings.gravity;
+
+pipeSpeed =
+settings.pipeSpeed;
+
+pipeGap =
+settings.pipeGap;
+
+difficultyLevel.textContent =
+settings.label;
+
+difficultyModal.style.display =
+"none";
+
+resetGame();
+}
+
+/* RESET */
+function resetGame(){
+
+score=0;
+scoreBox.innerText=0;
+
+bird.y=250;
+bird.velocity=0;
+
+pipes=[];
+
+gameOver=false;
+gameStarted=false;
+
+gameOverText.style.display=
+"none";
+
+startText.style.display=
+"block";
+}
+
+/* CREATE PIPE */
+function createPipe(){
+
+let topHeight =
+Math.random()*220+80;
+
+pipes.push({
+
+x:canvas.width,
+
+top:topHeight,
+
+bottom:
+canvas.height -
+topHeight -
+pipeGap -
+80,
+
+passed:false
+
+});
+}
+function drawBird(){
+
+ctx.save();
+
+ctx.translate(
+bird.x,
+bird.y
+);
+
+bird.rotation =
+bird.velocity * 0.05;
+
+if(bird.rotation > 1){
+bird.rotation = 1;
+}
+
+ctx.rotate(bird.rotation);
+
+ctx.fillStyle="#ffd500";
+
+ctx.beginPath();
+ctx.arc(
+0,0,
+bird.radius,
+0,
+Math.PI*2
+);
+ctx.fill();
+
+/* wing */
+ctx.fillStyle="#ffb300";
+
+ctx.beginPath();
+ctx.ellipse(
+-5,5,
+8,12,
+0,0,
+Math.PI*2
+);
+ctx.fill();
+
+/* eye */
+ctx.fillStyle="white";
+ctx.beginPath();
+ctx.arc(8,-6,4,0,Math.PI*2);
+ctx.fill();
+
+ctx.fillStyle="black";
+ctx.beginPath();
+ctx.arc(9,-6,2,0,Math.PI*2);
+ctx.fill();
+
+/* beak */
+ctx.fillStyle="orange";
+ctx.beginPath();
+ctx.moveTo(16,0);
+ctx.lineTo(28,-3);
+ctx.lineTo(16,5);
+ctx.fill();
+
+ctx.restore();
+}
+
+function drawPipes(){
+
+pipes.forEach(pipe=>{
+
+/* top */
+ctx.fillStyle="#2ecc40";
+ctx.fillRect(
+pipe.x,
+0,
+75,
+pipe.top
+);
+
+/* cap */
+ctx.fillStyle="#27ae35";
+ctx.fillRect(
+pipe.x-5,
+pipe.top-25,
+85,
+25
+);
+
+/* bottom */
+let bottomY =
+canvas.height -
+pipe.bottom -
+80;
+
+ctx.fillStyle="#2ecc40";
+ctx.fillRect(
+pipe.x,
+bottomY,
+75,
+pipe.bottom
+);
+
+ctx.fillStyle="#27ae35";
+ctx.fillRect(
+pipe.x-5,
+bottomY,
+85,
+25
+);
+
+});
+}
+
+function drawClouds(){
+
+ctx.fillStyle=
+"rgba(255,255,255,.8)";
+
+clouds.forEach(cloud=>{
+
+ctx.beginPath();
+
+ctx.arc(
+cloud.x,
+cloud.y,
+18,
+0,
+Math.PI*2
+);
+
+ctx.arc(
+cloud.x+18,
+cloud.y,
+22,
+0,
+Math.PI*2
+);
+
+ctx.arc(
+cloud.x+35,
+cloud.y,
+16,
+0,
+Math.PI*2
+);
+
+ctx.fill();
+});
+}
+
+function moveClouds(){
+
+clouds.forEach(cloud=>{
+
+cloud.x -= cloud.speed;
+
+if(cloud.x < -50){
+
+cloud.x = 450;
+cloud.y =
+Math.random()*220;
+}
+});
+}
+
+function updateBird(){
+
+if(!gameStarted ||
+gameOver) return;
+
+bird.velocity +=
+bird.gravity;
+
+bird.y +=
+bird.velocity;
+}
+
+function movePipes(){
+
+if(!gameStarted ||
+gameOver) return;
+
+pipes.forEach(pipe=>{
+
+pipe.x -= pipeSpeed;
+
+/* score */
+if(
+!pipe.passed &&
+pipe.x + 75 < bird.x
+){
+
+score++;
+
+pipe.passed=true;
+
+scoreBox.innerText=
+score;
+}
+});
+
+pipes =
+pipes.filter(
+p=>p.x+75>0
+);
+}
+
+/* PARTICLES */
+let particles=[];
+
+function createExplosion(x,y){
+
+for(let i=0;i<20;i++){
+
+particles.push({
+
+x:x,
+y:y,
+
+dx:
+(Math.random()-0.5)*6,
+
+dy:
+(Math.random()-0.5)*6,
+
+life:30
+
+});
+}
+}
+
+function drawParticles(){
+
+particles.forEach(p=>{
+
+ctx.fillStyle=
+"orange";
+
+ctx.beginPath();
+
+ctx.arc(
+p.x,p.y,
+3,
+0,
+Math.PI*2
+);
+
+ctx.fill();
+});
+}
+
+function moveParticles(){
+
+particles.forEach(p=>{
+
+p.x += p.dx;
+p.y += p.dy;
+
+p.life--;
+});
+
+particles=
+particles.filter(
+p=>p.life>0
+);
+}
+
+/* COLLISION */
+function checkCollision(){
+
+pipes.forEach(pipe=>{
+
+let hitX =
+bird.x + bird.radius >
+pipe.x &&
+
+bird.x - bird.radius <
+pipe.x + 75;
+
+let topHit =
+bird.y - bird.radius <
+pipe.top;
+
+let bottomY =
+canvas.height -
+pipe.bottom -
+80;
+
+let bottomHit =
+bird.y + bird.radius >
+bottomY;
+
+if(
+hitX &&
+(topHit || bottomHit)
+){
+endGame();
+}
+});
+
+/* top or ground */
+if(
+bird.y < 0 ||
+
+bird.y + bird.radius >
+canvas.height - 80
+){
+endGame();
+}
+}
+
+function endGame(){
+
+if(gameOver) return;
+
+gameOver=true;
+
+createExplosion(
+bird.x,
+bird.y
+);
+
+gameOverText.style.display=
+"block";
+
+/* SAVE HISTORY */
+fetch("/save_history",{
+
+method:"POST",
+
+headers:{
+"Content-Type":
+"application/x-www-form-urlencoded"
+},
+
+body:
+"game_name=Flappy Bird"+
+"&result=Completed"+
+"&score="+score
+
+});
+
+/* SAVE SCORE */
+fetch("/save-score",{
+
+method:"POST",
+
+headers:{
+"Content-Type":
+"application/json"
+},
+
+body:JSON.stringify({
+
+game_name:
+"Flappy Bird",
+
+score:score
+
+})
+});
+}
+
+/* DRAW */
+function draw(){
+
+ctx.clearRect(
+0,0,
+canvas.width,
+canvas.height
+);
+
+drawClouds();
+drawPipes();
+drawBird();
+drawParticles();
+}
+
+/* UPDATE */
+function update(){
+
+updateBird();
+movePipes();
+moveClouds();
+moveParticles();
+checkCollision();
+
+/* move ground */
+let current =
+parseFloat(
+ground.dataset.x || 0
+);
+
+current -= 2;
+
+if(current < -420){
+current = 0;
+}
+
+ground.style.transform =
+`translateX(${current}px)`;
+
+ground.dataset.x =
+current;
+}
+
+/* LOOP */
+function gameLoop(){
+
+update();
+draw();
+
+requestAnimationFrame(
+gameLoop
+);
+}
+
+/* PIPE SPAWN */
+setInterval(()=>{
+
+if(
+gameStarted &&
+!gameOver
+){
+createPipe();
+}
+
+},1500);
+
+/* SPACE */
+document.addEventListener(
+"keydown",e=>{
+
+if(e.code==="Space"){
+
+/* restart */
+if(gameOver){
+
+resetGame();
+return;
+}
+
+gameStarted=true;
+
+startText.style.display=
+"none";
+
+bird.velocity=
+bird.jump;
+}
+});
+
+/* CLICK */
+canvas.addEventListener(
+"click",()=>{
+
+if(!gameOver){
+
+gameStarted=true;
+
+startText.style.display=
+"none";
+
+bird.velocity=
+bird.jump;
+}
+});
+
+/* START LOOP */
+gameLoop();
+
+</script>
+</body>
+</html>
