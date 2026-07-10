@@ -1,20 +1,27 @@
-import mysql.connector
 import os
+import mysql.connector
+from mysql.connector import Error
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
 load_dotenv()
 
 def get_db_connection():
-    """
-    Create and return a MySQL database connection.
-    Uses environment variables for configuration (for security).
-    Fallback to localhost for local development.
-    """
-    connection = mysql.connector.connect(
-        host=os.getenv("DB_HOST", "localhost"),
-        user=os.getenv("DB_USER", "root"),
-        password=os.getenv("DB_PASSWORD", ""),
-        database=os.getenv("DB_NAME", "gujju_games")
-    )
-    return connection
+    try:
+        connection = mysql.connector.connect(
+            host=os.getenv("DB_HOST"),
+            port=int(os.getenv("DB_PORT")),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+            database=os.getenv("DB_NAME"),
+            ssl_ca="ca.pem",
+            ssl_verify_cert=True,
+            connection_timeout=10,
+            autocommit=True
+        )
+
+        print("✅ Database Connected")
+        return connection
+
+    except Error as e:
+        print("❌ Database Error:", e)
+        raise
