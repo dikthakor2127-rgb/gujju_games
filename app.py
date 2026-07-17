@@ -24,7 +24,7 @@ app.config['PERMANENT_SESSION_LIFETIME'] = 86400  # 24 hours
 
 @app.route("/")
 def home():
-    return redirect(url_for("index"))
+    return redirect(url_for("dashboard"))
 
 
 # ============================================
@@ -68,8 +68,16 @@ def registration():
         cursor.execute(
             """
             INSERT INTO users
-            (Username, Email, Phone_Number, Password)
-            VALUES (%s,%s,%s,%s)
+            (
+                Username,
+                Email,
+                Phone_Number,
+                Password,
+                Confirm_password
+            )
+
+            VALUES
+            (%s,%s,%s,%s,%s)
             """,
             (
                 username,
@@ -90,24 +98,33 @@ def registration():
 
 # ============================================
 # LOGIN
-# ============================================
+# =====================================================
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
 
+    # Already logged in
+    if "Username" in session:
+        return redirect(url_for("dashboard"))
+
+    if "admin_username" in session:
+        return redirect(url_for("admin_dashboard"))
+
     if request.method == "POST":
 
-        username = request.form["Username"]
-        password = request.form["Password"]
+        username = request.form.get("Username", "").strip()
+        password = request.form.get("Password", "")
 
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-
-        # ---------------- ADMIN LOGIN ----------------
+                # ============================================
+        # ADMIN LOGIN
+        # ============================================
 
         cursor.execute(
             """
-            SELECT * FROM admins
+            SELECT *
+            FROM admins
             WHERE Username=%s
             """,
             (username,)
@@ -117,7 +134,15 @@ def login():
 
         if admin:
 
-            valid = admin["Password"] == password
+            valid = False
+
+            try:
+                valid = check_password_hash(
+                    admin["Password"],
+                    password
+                )
+            except Exception:
+                valid = admin["Password"] == password
 
             if valid:
 
@@ -127,20 +152,21 @@ def login():
                 cursor.close()
                 conn.close()
 
-                return redirect(
-                    url_for("admin_dashboard")
-                )
+                return redirect(url_for("admin_dashboard"))
 
             cursor.close()
             conn.close()
 
             return "Admin password incorrect"
 
-        # ---------------- USER LOGIN ----------------
+        # ============================================
+        # USER LOGIN
+        # ============================================
 
         cursor.execute(
             """
-            SELECT * FROM users
+            SELECT *
+            FROM users
             WHERE Username=%s
             """,
             (username,)
@@ -149,133 +175,135 @@ def login():
         user = cursor.fetchone()
 
         if not user:
+
             cursor.close()
             conn.close()
+
             return "User not found"
 
         valid = False
 
         try:
+
             valid = check_password_hash(
                 user["Password"],
                 password
             )
-        except:
-            if user["Password"] == password:
-                valid = True
 
-        if valid:
+        except Exception:
 
-            session.clear()
-            session["Username"] = user["Username"]
+            valid = user["Password"] == password
+
+        if not valid:
 
             cursor.close()
             conn.close()
 
-            return redirect(url_for("dashboard"))
+            return "Password incorrect"
+
+        session.clear()
+        session["Username"] = user["Username"]
 
         cursor.close()
         conn.close()
 
-        return "Password incorrect"
+        return redirect(url_for("dashboard"))
 
     return render_template("login.html")
 
 
-# ============================================
-# DASHBOARD / INDEX
-# ============================================
+# =====================================================
+# USER DASHBOARD
+# =====================================================
 
 @app.route("/dashboard")
 @app.route("/index")
-def index():
+def dashboard():
 
-    username = session.get("Username")
+    if "Username" not in session:
+        return redirect(url_for("login"))
+
+    username = session["Username"]
 
     total_games = 0
     high_score = 0
     game_stats = {}
 
-    if username:
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
 
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
+    # Total Games Played
+    cursor.execute(
+        """
+        SELECT COUNT(*) AS total
+        FROM history
+        WHERE username=%s
+        """,
+        (username,)
+    )
 
-        # total matches played
-        cursor.execute(
-            """
-            SELECT COUNT(*) AS total
-            FROM history
-            WHERE username=%s
-            """,
-            (username,)
-        )
+    total_games = cursor.fetchone()["total"]
 
-        total_games = cursor.fetchone()["total"]
+    # Highest Score
+    cursor.execute(
+        """
+        SELECT MAX(score) AS max_score
+        FROM history
+        WHERE username=%s
+        """,
+        (username,)
+    )
 
-        # highest score overall
-        cursor.execute(
-            """
-            SELECT MAX(score) AS max_score
-            FROM history
-            WHERE username=%s
-            """,
-            (username,)
-        )
+    result = cursor.fetchone()
 
-        result = cursor.fetchone()
+    if result and result["max_score"] is not None:
+        high_score = result["max_score"]
 
-        if result["max_score"]:
-            high_score = result["max_score"]
+    # Per Game Statistics
+    cursor.execute(
+        """
+        SELECT
+            game_name,
+            MAX(score) AS best_score,
+            COUNT(*) AS played
 
-        # stats per game
-        cursor.execute(
-            """
-            SELECT
-                game_name,
-                MAX(score) AS best_score,
-                COUNT(*) AS played
+        FROM history
 
-            FROM history
+        WHERE username=%s
 
-            WHERE username=%s
+        GROUP BY game_name
 
-            GROUP BY game_name
-            """,
-            (username,)
-        )
+        ORDER BY game_name
+        """,
+        (username,)
+    )
 
-        rows = cursor.fetchall()
+    rows = cursor.fetchall()
 
-        for row in rows:
+    for row in rows:
 
-            game_stats[row["game_name"]] = {
+        game_stats[row["game_name"]] = {
 
-                "best": row["best_score"],
+            "best": row["best_score"],
 
-                "played": row["played"]
-            }
+            "played": row["played"]
+        }
 
-        cursor.close()
-        conn.close()
+    cursor.close()
+    conn.close()
 
     return render_template(
-
         "index.html",
-
         Username=username,
-
         total_games=total_games,
-
         high_score=high_score,
-
         game_stats=game_stats
     )
 
 
-# ============================================
+# =====================================================
 # PROFILE
-# ============================================
+# =====================================================
 
 @app.route("/profile", methods=["GET", "POST"])
 def profile():
@@ -287,67 +315,114 @@ def profile():
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+        if request.method == "POST":
 
-    if request.method == "POST":
+        new_username = request.form.get("Username", "").strip()
+        email = request.form.get("Email", "").strip()
+        phone = request.form.get("Phone_Number", "").strip()
 
-        new_username = request.form["Username"]
-        email = request.form["Email"]
-        phone = request.form["Phone_Number"]
+        if not new_username:
+            new_username = current_username
 
-        # update users table
-        cursor.execute(
-            """
+        # Check duplicate username
+        cursor.execute("""
+            SELECT id
+            FROM users
+            WHERE Username=%s
+            AND Username<>%s
+        """, (
+            new_username,
+            current_username
+        ))
+
+        if cursor.fetchone():
+
+            cursor.close()
+            conn.close()
+
+            return "Username already exists."
+
+        # Check duplicate email
+        cursor.execute("""
+            SELECT id
+            FROM users
+            WHERE Email=%s
+            AND Username<>%s
+        """, (
+            email,
+            current_username
+        ))
+
+        if cursor.fetchone():
+
+            cursor.close()
+            conn.close()
+
+            return "Email already exists."
+
+        # Update users table
+
+        cursor.execute("""
             UPDATE users
-            SET Username=%s,
+            SET
+                Username=%s,
                 Email=%s,
                 Phone_Number=%s
             WHERE Username=%s
-            """,
-            (
-                new_username,
-                email,
-                phone,
-                current_username
-            )
-        )
+        """, (
 
-        # update leaderboard
-        cursor.execute(
-            """
+            new_username,
+            email,
+            phone,
+            current_username
+
+        ))
+
+        # Update leaderboard
+
+        cursor.execute("""
             UPDATE leaderboard
             SET Username=%s
             WHERE Username=%s
-            """,
-            (
-                new_username,
-                current_username
-            )
-        )
+        """, (
 
-        # update history
-        cursor.execute(
-            """
+            new_username,
+            current_username
+
+        ))
+
+        # Update history
+
+        cursor.execute("""
             UPDATE history
             SET username=%s
             WHERE username=%s
-            """,
-            (
-                new_username,
-                current_username
-            )
-        )
+        """, (
+
+            new_username,
+            current_username
+
+        ))
 
         conn.commit()
 
         session["Username"] = new_username
 
-    cursor.execute(
-        """
-        SELECT * FROM users
+        current_username = new_username
+
+    cursor.execute("""
+
+        SELECT *
+
+        FROM users
+
         WHERE Username=%s
-        """,
-        (session["Username"],)
-    )
+
+    """, (
+
+        current_username,
+
+    ))
 
     user = cursor.fetchone()
 
@@ -355,43 +430,64 @@ def profile():
     conn.close()
 
     return render_template(
+
         "user_profile.html",
+
         user=user
+
     )
-# ============================================
+
+
+# ===========================================================
 # GAME ROUTES
-# ============================================
+# ===========================================================
 
 @app.route("/tic-tac-toe")
 def tic_tac_toe():
-    return render_template("tic_tac_toe.html")
+
+    return render_template(
+        "tic_tac_toe.html"
+    )
 
 
 @app.route("/brick-breaker")
 def brick_breaker():
-    return render_template("brick_n_ball.html")
+
+    return render_template(
+        "brick_n_ball.html"
+    )
 
 
 @app.route("/snake")
 def snake():
-    return render_template("snake_apple.html")
+
+    return render_template(
+        "snake_apple.html"
+    )
 
 
 @app.route("/space-shooter")
 def space_shooter():
-    return render_template("space_shooter.html")
+
+    return render_template(
+        "space_shooter.html"
+    )
 
 
 @app.route("/flappy-bird")
 def flappy_bird():
-    return render_template("flappy_bird.html")
+
+    return render_template(
+        "flappy_bird.html"
+    )
 
 
 @app.route("/car")
 def car_game():
-    return render_template("car.html")
 
-
+    return render_template(
+        "car.html"
+    )
 # ============================================
 # SAVE MATCH HISTORY
 # ============================================
@@ -402,43 +498,79 @@ def save_history():
     if "Username" not in session:
         return jsonify({
             "success": False,
-            "message": "Login required"
+            "message": "Please login first."
         }), 401
 
-    game_name = request.form.get("game_name")
-    result = request.form.get("result")
-    score = request.form.get("score", 0)
+    game_name = request.form.get("game_name", "").strip()
+    result = request.form.get("result", "").strip()
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    try:
+        score = int(request.form.get("score", 0))
+    except (TypeError, ValueError):
+        score = 0
 
-    cursor.execute(
-        """
-        INSERT INTO history
-        (username, game_name, result, score)
+    if not game_name:
+        return jsonify({
+            "success": False,
+            "message": "Game name is required."
+        }), 400
 
-        VALUES (%s,%s,%s,%s)
-        """,
-        (
-            session["Username"],
-            game_name,
-            result,
-            score
+    conn = None
+    cursor = None
+
+    try:
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            INSERT INTO history
+            (
+                username,
+                game_name,
+                result,
+                score
+            )
+
+            VALUES
+            (%s,%s,%s,%s)
+            """,
+            (
+                session["Username"],
+                game_name,
+                result,
+                score
+            )
         )
-    )
 
-    conn.commit()
+        conn.commit()
 
-    cursor.close()
-    conn.close()
+        return jsonify({
+            "success": True,
+            "message": "History saved successfully."
+        })
 
-    return jsonify({
-        "success": True,
-        "message": "History saved"
-    })
+    except Exception as e:
 
+        if conn:
+            conn.rollback()
 
-# ============================================
+        print("History Error:", e)
+
+        return jsonify({
+            "success": False,
+            "message": "Unable to save history."
+        }), 500
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if conn:
+            conn.close()
+            # ============================================
 # SAVE SCORE → LEADERBOARD
 # BEST SCORE ONLY
 # ============================================
@@ -449,90 +581,131 @@ def save_score():
     if "Username" not in session:
         return jsonify({
             "success": False,
-            "message": "Please login first"
+            "message": "Please login first."
         }), 401
 
-    data = request.get_json()
+    data = request.get_json(silent=True)
 
-    game_name = data.get("game_name")
-    score = int(data.get("score", 0))
+    if not data:
+        return jsonify({
+            "success": False,
+            "message": "Invalid request."
+        }), 400
+
+    game_name = data.get("game_name", "").strip()
+
+    try:
+        score = int(data.get("score", 0))
+    except (TypeError, ValueError):
+        score = 0
 
     if not game_name:
         return jsonify({
             "success": False,
-            "message": "Game name missing"
+            "message": "Game name missing."
         }), 400
 
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    conn = None
+    cursor = None
 
-    # check existing score
-    cursor.execute(
-        """
-        SELECT * FROM leaderboard
-        WHERE Username=%s
-        AND game_name=%s
-        """,
-        (
-            session["Username"],
-            game_name
-        )
-    )
+    try:
 
-    existing = cursor.fetchone()
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
 
-    # no old score → insert
-    if not existing:
+        # Check existing leaderboard record
 
         cursor.execute(
             """
-            INSERT INTO leaderboard
-            (Username, game_name, score)
+            SELECT score
 
-            VALUES (%s,%s,%s)
+            FROM leaderboard
+
+            WHERE Username=%s
+            AND game_name=%s
             """,
             (
                 session["Username"],
-                game_name,
-                score
+                game_name
             )
         )
 
-    else:
+        existing = cursor.fetchone()
 
-        old_score = existing["score"]
+        # No existing score → Insert
 
-        # update only if new score bigger
-        if score > old_score:
+        if existing is None:
 
             cursor.execute(
                 """
-                UPDATE leaderboard
-                SET score=%s,
-                    played_at=CURRENT_TIMESTAMP
+                INSERT INTO leaderboard
+                (
+                    Username,
+                    game_name,
+                    score
+                )
 
-                WHERE Username=%s
-                AND game_name=%s
+                VALUES
+                (%s,%s,%s)
                 """,
                 (
-                    score,
                     session["Username"],
-                    game_name
+                    game_name,
+                    score
                 )
             )
 
-    conn.commit()
+        else:
 
-    cursor.close()
-    conn.close()
+            # Update only if score is higher
 
-    return jsonify({
-        "success": True,
-        "message": "Score updated"
-    })
+            if score > existing["score"]:
 
+                cursor.execute(
+                    """
+                    UPDATE leaderboard
 
-# ============================================
+                    SET
+                        score=%s,
+                        played_at=CURRENT_TIMESTAMP
+
+                    WHERE Username=%s
+                    AND game_name=%s
+                    """,
+                    (
+                        score,
+                        session["Username"],
+                        game_name
+                    )
+                )
+
+        conn.commit()
+
+        return jsonify({
+            "success": True,
+            "message": "Leaderboard updated."
+        })
+
+    except Exception as e:
+
+        if conn:
+            conn.rollback()
+
+        print("Leaderboard Error:", e)
+
+        return jsonify({
+            "success": False,
+            "message": "Unable to save score."
+        }), 500
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if conn:
+            conn.close()
+            # ============================================
 # HISTORY PAGE
 # ============================================
 
@@ -542,69 +715,112 @@ def history():
     if "Username" not in session:
         return redirect(url_for("login"))
 
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    conn = None
+    cursor = None
 
-    cursor.execute(
-        """
-        SELECT *
+    try:
 
-        FROM history
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
 
-        WHERE username=%s
+        cursor.execute("""
+            SELECT
+                id,
+                game_name,
+                result,
+                score,
+                played_at
 
-        ORDER BY played_at DESC
-        """,
-        (session["Username"],)
-    )
+            FROM history
 
-    history_data = cursor.fetchall()
+            WHERE username=%s
 
-    cursor.close()
-    conn.close()
+            ORDER BY played_at DESC
+        """, (
+            session["Username"],
+        ))
 
-    return render_template(
-        "history.html",
-        history=history_data
-    )
+        history_data = cursor.fetchall()
+
+        return render_template(
+            "history.html",
+            history=history_data
+        )
+
+    except Exception as e:
+
+        print("History Error:", e)
+
+        return render_template(
+            "history.html",
+            history=[]
+        )
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if conn:
+            conn.close()
 
 
 # ============================================
 # LEADERBOARD PAGE
-# TOP 10 PLAYERS
 # ============================================
 
 @app.route("/leaderboard")
 def leaderboard():
 
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    conn = None
+    cursor = None
 
-    cursor.execute(
-        """
-        SELECT
-            Username,
-            game_name,
-            score,
-            played_at
+    try:
 
-        FROM leaderboard
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
 
-        ORDER BY score DESC
+        cursor.execute("""
+            SELECT
+                Username,
+                game_name,
+                score,
+                played_at
 
-        LIMIT 10
-        """
-    )
+            FROM leaderboard
 
-    leaders = cursor.fetchall()
+            ORDER BY
+                score DESC,
+                played_at ASC
 
-    cursor.close()
-    conn.close()
+            LIMIT 10
+        """)
 
-    return render_template(
-        "leaderboard.html",
-        leaders=leaders
-    )
+        leaders = cursor.fetchall()
+
+        return render_template(
+            "leaderboard.html",
+            leaders=leaders
+        )
+
+    except Exception as e:
+
+        print("Leaderboard Error:", e)
+
+        return render_template(
+            "leaderboard.html",
+            leaders=[]
+        )
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if conn:
+            conn.close()
+
+
 # ============================================
 # ADMIN DASHBOARD
 # ============================================
@@ -618,35 +834,36 @@ def admin_dashboard():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    # all users
-    cursor.execute("SELECT * FROM users")
-    users = cursor.fetchall()
-    total_users = len(users)
+    # Total Users
+    cursor.execute("SELECT COUNT(*) AS total_users FROM users")
+    total_users = cursor.fetchone()["total_users"]
 
-    # total games played
-    cursor.execute("""
-        SELECT COUNT(*) AS total_games
-        FROM history
-    """)
+    # Total Matches
+    cursor.execute("SELECT COUNT(*) AS total_games FROM history")
     total_games = cursor.fetchone()["total_games"]
 
-    # active users
+    # Active Users
     cursor.execute("""
         SELECT COUNT(DISTINCT username)
         AS active_users
         FROM history
     """)
     active_users = cursor.fetchone()["active_users"]
+        # ============================================
+    # GAME TYPES
+    # ============================================
 
-    # game types
     cursor.execute("""
-        SELECT COUNT(DISTINCT game_name)
-        AS game_types
-        FROM history
+        SELECT COUNT(*) AS game_types
+        FROM games
     """)
+
     game_types = cursor.fetchone()["game_types"]
 
-    # game stats
+    # ============================================
+    # GAME STATISTICS
+    # ============================================
+
     cursor.execute("""
         SELECT
             game_name,
@@ -660,9 +877,13 @@ def admin_dashboard():
 
         ORDER BY plays DESC
     """)
+
     game_stats = cursor.fetchall()
 
-    # top players
+    # ============================================
+    # TOP PLAYERS
+    # ============================================
+
     cursor.execute("""
         SELECT
             username,
@@ -678,13 +899,25 @@ def admin_dashboard():
 
         LIMIT 6
     """)
+
     top_players = cursor.fetchall()
 
-    # games list
-    cursor.execute("SELECT * FROM games")
+    # ============================================
+    # GAMES LIST
+    # ============================================
+
+    cursor.execute("""
+        SELECT *
+        FROM games
+        ORDER BY id
+    """)
+
     admin_games = cursor.fetchall()
 
-    # recent history
+    # ============================================
+    # RECENT MATCH HISTORY
+    # ============================================
+
     cursor.execute("""
         SELECT
             username,
@@ -697,17 +930,21 @@ def admin_dashboard():
 
         ORDER BY played_at DESC
 
-        LIMIT 8
+        LIMIT 10
     """)
+
     recent_history = cursor.fetchall()
 
     cursor.close()
     conn.close()
 
     return render_template(
+
         "admin_dashboard.html",
 
-        users=users,
+        admin_username=session["admin_username"],
+
+        users=[],
 
         total_users=total_users,
 
@@ -721,14 +958,11 @@ def admin_dashboard():
 
         top_players=top_players,
 
-        recent_history=recent_history,
-
         admin_games=admin_games,
 
-        admin_username=session["admin_username"]
+        recent_history=recent_history
+
     )
-
-
 # ============================================
 # UPDATE GAME
 # ============================================
@@ -739,37 +973,57 @@ def update_game(game_id):
     if "admin_username" not in session:
         return redirect(url_for("login"))
 
-    name = request.form.get("name")
-    category = request.form.get("category")
-    status = request.form.get("status")
-    route = request.form.get("route")
-    icon = request.form.get("icon")
+    name = request.form.get("name", "").strip()
+    description = request.form.get("description", "").strip()
+    status = request.form.get("status", "Active").strip()
+    route = request.form.get("route", "").strip()
+    icon = request.form.get("icon", "🎮").strip()
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    if not name:
+        return "Game name is required."
 
-    cursor.execute("""
-        UPDATE games
-        SET
-            game_name=%s,
-            description=%s,
-            status=%s,
-            route=%s,
-            icon=%s
-        WHERE id=%s
-    """, (
-        name,
-        category,
-        status,
-        route,
-        icon,
-        game_id
-    ))
+    conn = None
+    cursor = None
 
-    conn.commit()
+    try:
 
-    cursor.close()
-    conn.close()
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            UPDATE games
+            SET
+                game_name=%s,
+                description=%s,
+                status=%s,
+                route=%s,
+                icon=%s
+            WHERE id=%s
+        """, (
+            name,
+            description,
+            status,
+            route,
+            icon,
+            game_id
+        ))
+
+        conn.commit()
+
+    except Exception as e:
+
+        if conn:
+            conn.rollback()
+
+        print("Update Game Error:", e)
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if conn:
+            conn.close()
 
     return redirect(url_for("admin_dashboard"))
 
@@ -784,36 +1038,61 @@ def add_game():
     if "admin_username" not in session:
         return redirect(url_for("login"))
 
-    game_name = request.form.get("game_name")
-    description = request.form.get("description")
-    icon = request.form.get("icon")
-    route = request.form.get("route")
-    status = request.form.get("status", "Active")
+    game_name = request.form.get("game_name", "").strip()
+    description = request.form.get("description", "").strip()
+    icon = request.form.get("icon", "🎮").strip()
+    route = request.form.get("route", "").strip()
+    status = request.form.get("status", "Active").strip()
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    if not game_name:
+        return "Game name cannot be empty."
 
-    cursor.execute("""
-        INSERT INTO games
-        (game_name, description, icon, route, status)
+    conn = None
+    cursor = None
 
-        VALUES (%s,%s,%s,%s,%s)
-    """, (
-        game_name,
-        description,
-        icon,
-        route,
-        status
-    ))
+    try:
 
-    conn.commit()
+        conn = get_db_connection()
+        cursor = conn.cursor()
 
-    cursor.close()
-    conn.close()
+        cursor.execute("""
+            INSERT INTO games
+            (
+                game_name,
+                description,
+                icon,
+                route,
+                status
+            )
+
+            VALUES
+            (%s,%s,%s,%s,%s)
+        """, (
+            game_name,
+            description,
+            icon,
+            route,
+            status
+        ))
+
+        conn.commit()
+
+    except Exception as e:
+
+        if conn:
+            conn.rollback()
+
+        print("Add Game Error:", e)
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if conn:
+            conn.close()
 
     return redirect(url_for("admin_dashboard"))
-
-
 # ============================================
 # EDIT GAME
 # ============================================
@@ -825,38 +1104,54 @@ def edit_game():
         return redirect(url_for("login"))
 
     game_id = request.form.get("game_id")
-    game_name = request.form.get("game_name")
-    description = request.form.get("description")
-    icon = request.form.get("icon")
-    route = request.form.get("route")
-    status = request.form.get("status")
+    game_name = request.form.get("game_name", "").strip()
+    description = request.form.get("description", "").strip()
+    icon = request.form.get("icon", "🎮").strip()
+    route = request.form.get("route", "").strip()
+    status = request.form.get("status", "Active").strip()
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    conn = None
+    cursor = None
 
-    cursor.execute("""
-        UPDATE games
-        SET
-            game_name=%s,
-            description=%s,
-            icon=%s,
-            route=%s,
-            status=%s
+    try:
 
-        WHERE id=%s
-    """, (
-        game_name,
-        description,
-        icon,
-        route,
-        status,
-        game_id
-    ))
+        conn = get_db_connection()
+        cursor = conn.cursor()
 
-    conn.commit()
+        cursor.execute("""
+            UPDATE games
+            SET
+                game_name=%s,
+                description=%s,
+                icon=%s,
+                route=%s,
+                status=%s
+            WHERE id=%s
+        """, (
+            game_name,
+            description,
+            icon,
+            route,
+            status,
+            game_id
+        ))
 
-    cursor.close()
-    conn.close()
+        conn.commit()
+
+    except Exception as e:
+
+        if conn:
+            conn.rollback()
+
+        print("Edit Game Error:", e)
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if conn:
+            conn.close()
 
     return redirect(url_for("admin_dashboard"))
 
@@ -871,18 +1166,35 @@ def delete_game(game_id):
     if "admin_username" not in session:
         return redirect(url_for("login"))
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    conn = None
+    cursor = None
 
-    cursor.execute(
-        "DELETE FROM games WHERE id=%s",
-        (game_id,)
-    )
+    try:
 
-    conn.commit()
+        conn = get_db_connection()
+        cursor = conn.cursor()
 
-    cursor.close()
-    conn.close()
+        cursor.execute(
+            "DELETE FROM games WHERE id=%s",
+            (game_id,)
+        )
+
+        conn.commit()
+
+    except Exception as e:
+
+        if conn:
+            conn.rollback()
+
+        print("Delete Game Error:", e)
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if conn:
+            conn.close()
 
     return redirect(url_for("admin_dashboard"))
 
@@ -897,84 +1209,88 @@ def delete_user(user_id):
     if "admin_username" not in session:
         return redirect(url_for("login"))
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    conn = None
+    cursor = None
 
-    cursor.execute(
-        "DELETE FROM users WHERE id=%s",
-        (user_id,)
-    )
+    try:
 
-    conn.commit()
+        conn = get_db_connection()
+        cursor = conn.cursor()
 
-    cursor.close()
-    conn.close()
+        cursor.execute(
+            "DELETE FROM users WHERE id=%s",
+            (user_id,)
+        )
+
+        conn.commit()
+
+    except Exception as e:
+
+        if conn:
+            conn.rollback()
+
+        print("Delete User Error:", e)
+
+    finally:
+
+        if cursor:
+            cursor.close()
+
+        if conn:
+            conn.close()
 
     return redirect(url_for("admin_dashboard"))
 
 
 # ============================================
-# API: GET USER STATS (FOR LIVE UPDATES)
+# API USER STATS
 # ============================================
 
 @app.route("/api/user-stats")
 def api_user_stats():
-    """
-    API endpoint for live dashboard stats updates.
-    Returns user's total games and high score in JSON format.
-    """
-    
-    username = session.get("Username")
-    
-    total_games = 0
-    high_score = 0
-    
-    if username:
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-        
-        # total matches played
-        cursor.execute(
-            """
-            SELECT COUNT(*) AS total
-            FROM history
-            WHERE username=%s
-            """,
-            (username,)
-        )
-        
-        total_games = cursor.fetchone()["total"]
-        
-        # highest score overall
-        cursor.execute(
-            """
-            SELECT MAX(score) AS max_score
-            FROM history
-            WHERE username=%s
-            """,
-            (username,)
-        )
-        
-        result = cursor.fetchone()
-        
-        if result["max_score"]:
-            high_score = result["max_score"]
-        
-        cursor.close()
-        conn.close()
-        
+
+    if "Username" not in session:
+
         return jsonify({
-            "success": True,
-            "total_games": total_games,
-            "high_score": high_score
+            "success": False,
+            "total_games": 0,
+            "high_score": 0
         })
-    
-    # Guest user
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("""
+        SELECT COUNT(*) AS total_games
+        FROM history
+        WHERE username=%s
+    """, (
+        session["Username"],
+    ))
+
+    total_games = cursor.fetchone()["total_games"]
+
+    cursor.execute("""
+        SELECT MAX(score) AS high_score
+        FROM history
+        WHERE username=%s
+    """, (
+        session["Username"],
+    ))
+
+    result = cursor.fetchone()
+
+    cursor.close()
+    conn.close()
+
     return jsonify({
-        "success": False,
-        "message": "Not logged in",
-        "total_games": 0,
-        "high_score": 0
+
+        "success": True,
+
+        "total_games": total_games,
+
+        "high_score": result["high_score"] or 0
+
     })
 
 
@@ -987,9 +1303,7 @@ def logout():
 
     session.clear()
 
-    return redirect(
-        url_for("login")
-    )
+    return redirect(url_for("login"))
 
 
 # ============================================
@@ -997,10 +1311,11 @@ def logout():
 # ============================================
 
 if __name__ == "__main__":
-    # Production: Use gunicorn (handled by Procfile)
-    # Local development: Run with debug enabled
+
     debug_mode = os.environ.get("FLASK_ENV") != "production"
+
     port = int(os.environ.get("PORT", 5000))
+
     app.run(
         host="0.0.0.0",
         port=port,
