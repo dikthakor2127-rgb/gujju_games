@@ -315,7 +315,8 @@ def profile():
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-        if request.method == "POST":
+
+    if request.method == "POST":
 
         new_username = request.form.get("Username", "").strip()
         email = request.form.get("Email", "").strip()
@@ -324,105 +325,47 @@ def profile():
         if not new_username:
             new_username = current_username
 
-        # Check duplicate username
-        cursor.execute("""
-            SELECT id
-            FROM users
-            WHERE Username=%s
-            AND Username<>%s
-        """, (
-            new_username,
-            current_username
-        ))
-
-        if cursor.fetchone():
-
-            cursor.close()
-            conn.close()
-
-            return "Username already exists."
-
-        # Check duplicate email
-        cursor.execute("""
-            SELECT id
-            FROM users
-            WHERE Email=%s
-            AND Username<>%s
-        """, (
-            email,
-            current_username
-        ))
-
-        if cursor.fetchone():
-
-            cursor.close()
-            conn.close()
-
-            return "Email already exists."
-
-        # Update users table
-
         cursor.execute("""
             UPDATE users
-            SET
-                Username=%s,
+            SET Username=%s,
                 Email=%s,
                 Phone_Number=%s
             WHERE Username=%s
         """, (
-
             new_username,
             email,
             phone,
             current_username
-
         ))
-
-        # Update leaderboard
 
         cursor.execute("""
             UPDATE leaderboard
             SET Username=%s
             WHERE Username=%s
         """, (
-
             new_username,
             current_username
-
         ))
-
-        # Update history
 
         cursor.execute("""
             UPDATE history
             SET username=%s
             WHERE username=%s
         """, (
-
             new_username,
             current_username
-
         ))
 
         conn.commit()
 
         session["Username"] = new_username
-
         current_username = new_username
 
     cursor.execute("""
-
         SELECT *
-
         FROM users
-
         WHERE Username=%s
-
-    """, (
-
-        current_username,
-
-    ))
+    """, (current_username,))
 
     user = cursor.fetchone()
 
@@ -430,14 +373,9 @@ def profile():
     conn.close()
 
     return render_template(
-
         "user_profile.html",
-
         user=user
-
     )
-
-
 # ===========================================================
 # GAME ROUTES
 # ===========================================================
